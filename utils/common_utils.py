@@ -12,6 +12,31 @@ import matplotlib.pyplot as plt
 from math import pi
 
 
+fft  = lambda x, ax : np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(x, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64) 
+ifft = lambda X, ax : np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(X, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64)  
+
+# specific fft for our defined dynamic MR data
+fft2c_mri  = lambda x, ax=(-2,-1) : np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(x, axes=ax), axes=ax, norm='ortho'), axes=ax) 
+ifft2c_mri = lambda X, ax=(-2,-1) : np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(X, axes=ax), axes=ax, norm='ortho'), axes=ax) 
+
+
+def torch_fft2c(x):
+    return torch.fft.fftshift(torch.fft.fftn(torch.fft.ifftshift(x, dim=(-2,-1)), dim=(-2,-1), norm='ortho'), dim=(-2,-1))
+
+
+def torch_ifft2c(X):
+    return torch.fft.fftshift(torch.fft.ifftn(torch.fft.ifftshift(X, dim=(-2,-1)), dim=(-2,-1), norm='ortho'), dim=(-2,-1))
+
+
+def calc_SNR(y, y_):
+    y = np.array(y).flatten()
+    y_ = np.array(y_).flatten()
+    err = np.linalg.norm(y_ - y) ** 2
+    snr = 10 * np.log10(np.linalg.norm(y_) ** 2 / err)
+
+    return snr
+
+
 def get_params(opt_over, net, net_input, downsampler=None):
     '''Returns parameters that we want to optimize over.
 

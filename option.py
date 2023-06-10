@@ -31,16 +31,16 @@ def parse_args():
 
     # dataset
     parser.add_argument("--dataset", type=str, default="Retrospective")
-    parser.add_argument("--fname", type=str, default="cardiac32ch_b1.mat")
+    parser.add_argument("--fname", type=str, default="fs_0024_3T.mat")
     parser.add_argument("--Nfibo", type=int, default=13) # 13: retro | 5: real
-    parser.add_argument("--num_cycle", type=int, default=13) 
+    parser.add_argument("--num_cycle", type=int, default=1) 
     
     # training setups
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--step_size", type=int, default=2000) # scheduler
-    parser.add_argument("--gamma", type=float, default=0.5) # scheduler
+    parser.add_argument("--gamma", type=float, default=0.8) # scheduler
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--max_steps", type=int, default=10000)    
+    parser.add_argument("--max_steps", type=int, default=100000)    
 
     # misc
     parser.add_argument("--noPLOT", action="store_true")

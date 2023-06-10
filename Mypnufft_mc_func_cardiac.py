@@ -6,7 +6,7 @@ import numpy
 import scipy.misc
 import matplotlib.pyplot
 import scipy.io as sio
-import nufft
+# import nufft
 
 dtype = numpy.complex64
 
