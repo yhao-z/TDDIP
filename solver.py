@@ -113,8 +113,9 @@ class Solver():
         # For visualizations
         # Get Average PSNR and SSIM values for entire frames
         net_input_w_set = self.mapnet(self.net_input_set).reshape((self.Nfr,1,self.opt.style_size,self.opt.style_size)) 
-        out = self.net(net_input_w_set)
-        out = torch.complex(out[:,0,...],out[:,1,...]).detach().cpu().numpy()
+        out = self.net(net_input_w_set).detach().cpu().numpy()
+        out= np.sqrt(out[:,0,:,:]**2+out[:,1,:,:]**2)
+        # out = torch.complex(out[:,0,...],out[:,1,...]).detach().cpu().numpy()
         snr = calc_SNR(out, self.gt_cartesian_img.detach().cpu().numpy())
 
         psnr_val_list = []
@@ -225,7 +226,7 @@ class Solver():
         num_cycle = self.opt.num_cycle
         Nfibo = self.opt.Nfibo
         
-        gt_cartesian_img = np.squeeze(mat73.loadmat(fname)['label'])[32:-33, 8:-8, :].astype(np.complex64) # (128, 128, 22), complex64, kt-space data
+        gt_cartesian_img = np.abs(np.squeeze(mat73.loadmat(fname)['label'])[32:-33, 8:-8, :].astype(np.complex64)) # (128, 128, 22), complex64, kt-space data
         gt_cartesian_kt = fft(gt_cartesian_img, ax=(0,1)) # (128, 128, 22), complex64, kt-space data
         
         Nfr = np.shape(gt_cartesian_img)[2]*num_cycle # 22 number of frames * num_cycle (1)
