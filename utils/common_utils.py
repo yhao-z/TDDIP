@@ -10,14 +10,15 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from math import pi
+import torchvision.utils as vutils
 
 
 fft  = lambda x, ax : np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(x, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64) 
 ifft = lambda X, ax : np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(X, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64)  
 
 # specific fft for our defined dynamic MR data
-fft2c_mri  = lambda x, ax=(-2,-1) : np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(x, axes=ax), axes=ax, norm='ortho'), axes=ax) 
-ifft2c_mri = lambda X, ax=(-2,-1) : np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(X, axes=ax), axes=ax, norm='ortho'), axes=ax) 
+fft2c_mri  = lambda x, ax=(-2,-1) : np.fft.fftshift(np.fft.fftn(np.fft.ifftshift(x, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64)  
+ifft2c_mri = lambda X, ax=(-2,-1) : np.fft.fftshift(np.fft.ifftn(np.fft.ifftshift(X, axes=ax), axes=ax, norm='ortho'), axes=ax).astype(dtype=np.complex64)  
 
 
 def torch_fft2c(x):
@@ -35,6 +36,16 @@ def calc_SNR(y, y_):
     snr = 10 * np.log10(np.linalg.norm(y_) ** 2 / err)
 
     return snr
+
+
+def save_image_3d(tensor, slice_idx, file_name):
+    '''
+    tensor: [bs, c, h, w, 1]
+    '''
+    image_num = len(slice_idx)
+    tensor = tensor[0, slice_idx, ...].permute(0, 3, 1, 2).cpu().data  # [c, 1, h, w]
+    image_grid = vutils.make_grid(tensor, nrow=image_num, padding=0, normalize=True, scale_each=True)
+    vutils.save_image(image_grid, file_name, nrow=1)
 
 
 def get_params(opt_over, net, net_input, downsampler=None):

@@ -21,8 +21,11 @@ def main():
     module = importlib.import_module("models.{}".format(opt.model.lower()))
 
     solver = Solver(module, opt)
+    
+    opt.istest = True
+    
     if opt.istest:
-        solver.evaluate()
+        solver.test(opt.isresume)
     else:
         solver.fit()
     

@@ -81,14 +81,16 @@ class Solver():
             net_input_w = net_input_w.reshape((batch_size,1,opt.style_size,opt.style_size)) 
             out_sp = self.net(net_input_w) # e.g., spatial domain output (img) torch.Size([batch_size, 2, 128, 128])
             
-            out_sp = torch.complex(out_sp[:,0,...],out_sp[:,1,...]) # (batch_size, 128, 128)
+            out_sp = torch.complex(out_sp[:,0,...],out_sp[:,1,...]).abs() # (batch_size, 128, 128)
+            out_sp = torch.unsqueeze(out_sp, dim=0) * self.csm
+            
             out_cartisian_kt = torch_fft2c(out_sp) # (batch_size, 128, 128)
             
-            uds_out_cartisian_kt = self.mask[idx_frs,...] * out_cartisian_kt
+            uds_out_cartisian_kt = torch.mul(torch.unsqueeze(self.mask[idx_frs,...],dim=0) , out_cartisian_kt)
             
             uds_out_cartisian_kt = torch.stack([torch.real(uds_out_cartisian_kt), torch.imag(uds_out_cartisian_kt)], dim=-1) # (batch_size, 128, 128, 2)
 
-            total_loss = self.loss_fn(uds_out_cartisian_kt, uds_cartesian_kt[idx_frs,...])
+            total_loss = self.loss_fn(uds_out_cartisian_kt, uds_cartesian_kt[:, idx_frs,...])
 
 #             total_loss *= (self.img_size)**2       
             self.optimizer.zero_grad()
@@ -113,10 +115,13 @@ class Solver():
         # For visualizations
         # Get Average PSNR and SSIM values for entire frames
         net_input_w_set = self.mapnet(self.net_input_set).reshape((self.Nfr,1,self.opt.style_size,self.opt.style_size)) 
-        out = self.net(net_input_w_set).detach().cpu().numpy()
-        out= np.sqrt(out[:,0,:,:]**2+out[:,1,:,:]**2)
-        # out = torch.complex(out[:,0,...],out[:,1,...]).detach().cpu().numpy()
-        snr = calc_SNR(out, self.gt_cartesian_img.detach().cpu().numpy())
+        out = self.net(net_input_w_set)
+        # out= np.sqrt(out[:,0,:,:]**2+out[:,1,:,:]**2)
+        out = torch.complex(out[:,0,...],out[:,1,...]).abs()
+        mse = torch.nn.MSELoss()(out, self.gt_cartesian_img).item()
+        out = out.detach().cpu().numpy()
+        snr = calc_SNR(out, self.gt_cartesian_img.detach().cpu().numpy()[0,...])
+        
 
         psnr_val_list = []
         ssim_val_list = []
@@ -126,7 +131,7 @@ class Solver():
             tmp_ims= np.sqrt(tmp_ims[0,:,:]**2+tmp_ims[1,:,:]**2)
             tmp_ims -= tmp_ims.min()
             tmp_ims /= tmp_ims.max()
-            gt_cartesian_img = np.abs(self.gt_cartesian_img[idx_fr,:,:].detach().cpu().numpy())            
+            gt_cartesian_img = np.abs(self.gt_cartesian_img[0,idx_fr,:,:].detach().cpu().numpy())            
             psnr_val_list += [psnr(gt_cartesian_img, tmp_ims)]
             ssim_val_list += [ssim(gt_cartesian_img, tmp_ims)]  
         
@@ -152,8 +157,8 @@ class Solver():
 
             curr_lr = self.scheduler.get_lr()[0]
             eta = (self.t2-self.t1) * (max_steps-step) /self.opt.save_period / 3600
-            print("[{}/{}] {:.2f} {:.2f} {:.2f} (Best SNR: {:.2f} @ {} step) LR: {}, ETA: {:.1f} hours"
-                .format(step, max_steps, snr, psnr_val, ssim_val, self.best_snr, self.best_snr_step,
+            print("[{}/{}] {:.4f} {:.2f} {:.2f} {:.2f} (Best SNR: {:.2f} @ {} step) LR: {}, ETA: {:.1f} hours"
+                .format(step, max_steps, mse, snr, psnr_val, ssim_val, self.best_snr, self.best_snr_step,
                  curr_lr, eta))
 
             self.t1 = time.time()
@@ -161,6 +166,35 @@ class Solver():
         if step == max_steps-1:            
             self.save(step)
             # self.save_video(inp, ims, snr_val_list, ssim_val_list)
+
+
+    @torch.no_grad()
+    def test(self, path):  
+        self.issave = False
+        # For visualizations
+        # Get Average PSNR and SSIM values for entire frames
+        self.load(path)
+        net_input_w_set = self.mapnet(self.net_input_set).reshape((self.Nfr,1,self.opt.style_size,self.opt.style_size)) 
+        out = self.net(net_input_w_set)
+        # out= np.sqrt(out[:,0,:,:]**2+out[:,1,:,:]**2)
+        out = torch.complex(out[:,0,...],out[:,1,...]).abs()
+
+        out_ = out.detach().cpu().numpy()
+        gt_ = self.gt_cartesian_img.detach().cpu().numpy()[0,...]
+        snr_val = calc_SNR(out_, gt_)
+        
+        mse = torch.nn.MSELoss()(out, self.gt_cartesian_img)
+        psnr_val = - 10 * torch.log10(mse)
+        ssim_val = ssim(out_, gt_, multichannel=True)
+        mse = mse.item()
+        
+        slice_idx = list(range(0, out.shape[0], int(out.shape[0]/8)))
+        save_image_3d(out[None, ..., None], slice_idx, "Data_Results/recon_{:.4g}dB_{:.4g}dB_ssim{:.4g}.png".format(snr_val, psnr_val, ssim_val))
+        
+        sio.savemat('Data_Results/TDDIP_recon_0004.mat', {'label': gt_, 'recon': out_, 'metrics':"MSE={:.4f} | SNR={:.2f} | PSNR={:.2f} | SSIM={:.2f}".format(mse, snr_val, psnr_val, ssim_val)})
+        
+        print("MSE={:.4f} | SNR={:.2f} | PSNR={:.2f} | SSIM={:.2f}".format(mse, snr_val, psnr_val, ssim_val))
+
 
     def load(self, path):
         checkpoint = torch.load(path, map_location=lambda storage, loc: storage)
@@ -173,8 +207,7 @@ class Solver():
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler = checkpoint['scheduler']
         self.step = checkpoint['step']
-        self.best_psnr, self.best_psnr_step = checkpoint['best_psnr'], checkpoint['best_psnr_step']
-        self.best_ssim, self.best_ssim_step = checkpoint['best_ssim'], checkpoint['best_ssim_step']
+        self.best_psnr, self.best_psnr_step = checkpoint['best_snr'], checkpoint['best_snr_step']
         if not self.opt.istest:
             self.step = checkpoint['step']+1        
         
@@ -226,27 +259,26 @@ class Solver():
         num_cycle = self.opt.num_cycle
         Nfibo = self.opt.Nfibo
         
-        gt_cartesian_img = np.abs(np.squeeze(mat73.loadmat(fname)['label'])[32:-33, 8:-8, :].astype(np.complex64)) # (128, 128, 22), complex64, kt-space data
-        gt_cartesian_kt = fft(gt_cartesian_img, ax=(0,1)) # (128, 128, 22), complex64, kt-space data
+        gt_cartesian_img = np.abs(np.load(fname)['label'][:, 32:-32, 8:-8].astype(np.complex64)) # (128, 128, 22), complex64, kt-space data
+        gt_cartesian_img = gt_cartesian_img[np.newaxis,...] # (1, 22, 128, 128)
+        csm = np.load(fname)['csm'][:, 32:-32, 8:-8].astype(np.complex64)[:,np.newaxis,...] # (30, 22, 128, 128)
+        gt_cartesian_kt = fft2c_mri(gt_cartesian_img * csm) # (30, 22, 128, 128), complex64, kt-space data
         
-        Nfr = np.shape(gt_cartesian_img)[2]*num_cycle # 22 number of frames * num_cycle (1)
+        Nfr = np.shape(gt_cartesian_img)[1]*num_cycle # 22 number of frames * num_cycle (1)
         nx, ny=np.shape(gt_cartesian_img)[0:2] # 128        
 
-        gt_cartesian_kt = np.concatenate([gt_cartesian_kt]*num_cycle,axis=2) # (128, 128, 22*num_cycle), complex64, kt-space data 
-        gt_cartesian_img = np.concatenate([gt_cartesian_img]*num_cycle,axis=2) # (128, 128, 22*num_cycle), complex64, kt-space data 
+        gt_cartesian_kt = np.concatenate([gt_cartesian_kt]*num_cycle,axis=1) # (30, 22*num_cycle, 128, 128), complex64, kt-space data 
+        gt_cartesian_img = np.concatenate([gt_cartesian_img]*num_cycle,axis=1) # (1, 22*num_cycle, 128, 128), complex64, kt-space data 
         
-        mask = generate_mask(gt_cartesian_kt.shape, 13, 'radial').astype(np.complex64) # (128, 128, 22*num_cycle)
+        mask = generate_mask((*gt_cartesian_kt.shape[2:],gt_cartesian_kt.shape[1]), 16, 'radial').astype(np.complex64) # (128, 128, 22*num_cycle)
+        mask = np.transpose(mask, (2,0,1)) # (22*num_cycle, 128, 128)
         uds_cartesian_kt = mask * gt_cartesian_kt
-        uds_cartesian_img = ifft(uds_cartesian_kt, ax=(0,1)) # (128, 128, 22*num_cycle)
-        
-        mask = np.transpose(mask, (2,0,1)) # (22, 128, 128)
-        gt_cartesian_img = np.transpose(gt_cartesian_img, (2,0,1)) # (22, 128, 128)
-        uds_cartesian_img = np.transpose(uds_cartesian_img, (2,0,1)) # (22, 128, 128)
-        uds_cartesian_kt = np.transpose(uds_cartesian_kt, (2,0,1)) # (22, 128, 128)
+        uds_cartesian_img = ifft2c_mri(uds_cartesian_kt) # (30, 22*num_cycle, 128, 128)
 
         self.img_size = gt_cartesian_img.shape
         self.Nfr = Nfr
         self.mask = torch.from_numpy(mask).cuda()
+        self.csm = torch.from_numpy(csm).cuda()
         self.gt_cartesian_img = torch.from_numpy(gt_cartesian_img).cuda()
         self.uds_cartesian_img = torch.from_numpy(uds_cartesian_img).cuda()
         self.uds_cartesian_kt = torch.from_numpy(uds_cartesian_kt).cuda()

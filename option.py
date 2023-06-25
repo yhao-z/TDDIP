@@ -31,7 +31,7 @@ def parse_args():
 
     # dataset
     parser.add_argument("--dataset", type=str, default="Retrospective")
-    parser.add_argument("--fname", type=str, default="fs_0024_3T.mat")
+    parser.add_argument("--fname", type=str, default="Data_Results/0004.npz")
     parser.add_argument("--Nfibo", type=int, default=13) # 13: retro | 5: real
     parser.add_argument("--num_cycle", type=int, default=1) 
     
@@ -40,13 +40,13 @@ def parse_args():
     parser.add_argument("--step_size", type=int, default=2000) # scheduler
     parser.add_argument("--gamma", type=float, default=0.8) # scheduler
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--max_steps", type=int, default=100000)    
+    parser.add_argument("--max_steps", type=int, default=10000)    
 
     # misc
     parser.add_argument("--noPLOT", action="store_true")
     parser.add_argument("--isdev", action="store_true")  
     parser.add_argument("--istest", action="store_true") 
-    parser.add_argument("--isresume", type=str , default=None) # ckpt_filepath, e.g., "./logs/retro_20210221_142941/500.pt"
+    parser.add_argument("--isresume", type=str , default='logs/retro_20230625_185216/5000.pt') # ckpt_filepath, e.g., "./logs/retro_20210221_142941/500.pt"
     parser.add_argument("--ckpt_root", type=str, default="./logs/")
     parser.add_argument("--save_period", type=int, default=100)
     parser.add_argument("--memo", type=str, default="")
