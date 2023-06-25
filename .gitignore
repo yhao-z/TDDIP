@@ -1,6 +1,3 @@
-*.npz
-*.png
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -12,9 +9,6 @@ __pycache__/
 # ipynb
 *.ipynb
 .ipynb_checkpoints
-
-# mat file
-*.mat
 
 # log folder
 logs/
