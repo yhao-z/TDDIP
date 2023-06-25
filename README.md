@@ -4,13 +4,13 @@ The origin TD-DIP code is adapted specifically in non-cartesian radial sampling,
 
 ## Data
 
-I used one of the [OCMR](https://ocmr.info/) data to test the code as I was familiar with this dataset, specifically, I used one slice of the `fs_0060_1_5T` data. 
+I used one of the [OCMR](https://ocmr.info/) data to test the code as I was familiar with this dataset, specifically, the data dir is `Data_Results/0004.npz`
 
+<br>
 
+<br>
 
-
-
-
+<br>
 
 ----
 
