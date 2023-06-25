@@ -1,4 +1,21 @@
+# TD-DIP with Cartesian radial sampling
+
+The origin TD-DIP code is adapted specifically in non-cartesian radial sampling, thus the running time is relatively slow. I have changed the code to adapt  the pseudo-radial sampling (Cartesian version of random radial sampling) as in k-t SLR method. Thus, it runs fast.
+
+## Data
+
+I used one of the [OCMR](https://ocmr.info/) data to test the code as I was familiar with this dataset, specifically, I used one slice of the `fs_0060_1_5T` data. u can download the data in the Release page
+
+
+
+----
+
+The following is the origin Readme.
+
+----
+
 # TD-DIP (IEEE Transactions on Medical Imaging, 2021)
+
 The Official PyTorch Implementation of __Time-Dependent Deep Image Prior for Dynamic MRI__ ([Journal](https://ieeexplore.ieee.org/document/9442767) | [arXiv](https://arxiv.org/abs/1910.01684))
 
 Jaejun Yoo<sup>1</sup>, Kyong Hwan Jin<sup>1,2</sup>, Harshit Gupta<sup>1</sup>, Jerome Yerly<sup>2,3,4</sup>, Matthias Stuber<sup>2,3,4</sup>, Michael Unser<sup>1</sup>
